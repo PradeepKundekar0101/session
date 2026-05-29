@@ -1,14 +1,17 @@
+"use client";
+
+import { Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signUp } from "@/lib/actions/auth";
 import { SiteHeader, Button, Input, Label } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
 
-export default async function SignupPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ role?: string; error?: string }>;
-}) {
-  const params = await searchParams;
-  const defaultRole = params.role === "mentor" ? "mentor" : "learner";
+function SignupPageContent() {
+  const searchParams = useSearchParams();
+  const roleParam = searchParams.get("role");
+  const error = searchParams.get("error");
+  const defaultRole = roleParam === "mentor" ? "mentor" : "learner";
 
   return (
     <>
@@ -24,9 +27,9 @@ export default async function SignupPage({
             </p>
           </div>
 
-          {params.error ? (
+          {error ? (
             <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-              <p className="text-sm text-red-400">{decodeURIComponent(params.error)}</p>
+              <p className="text-sm text-red-400">{decodeURIComponent(error)}</p>
             </div>
           ) : null}
 
@@ -71,5 +74,13 @@ export default async function SignupPage({
         </div>
       </main>
     </>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <SignupPageContent />
+    </Suspense>
   );
 }

@@ -1,15 +1,40 @@
+"use client";
+
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { SiteHeader, Card } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
 
-export default async function MentorsPage() {
-  const supabase = await createClient();
-  const { data: mentors } = await supabase
-    .from("mentor_profiles")
-    .select("slug, headline, bio, expertise, rate_cents, avatar_url")
-    .eq("status", "approved")
-    .order("headline");
+type Mentor = {
+  slug: string;
+  headline: string;
+  bio: string;
+  expertise: string[] | null;
+  rate_cents: number;
+  avatar_url: string | null;
+};
+
+type MentorsResponse = {
+  mentors: Mentor[];
+};
+
+export default function MentorsPage() {
+  const { data, loading } = useApiGet<MentorsResponse>("/api/mentors");
+  const mentors = data?.mentors ?? [];
+
+  if (loading) {
+    return (
+      <>
+        <SiteHeader>
+          <Link href="/dashboard" className="hover:text-white transition-colors">
+            Dashboard
+          </Link>
+        </SiteHeader>
+        <PageLoader />
+      </>
+    );
+  }
 
   return (
     <>
@@ -24,12 +49,12 @@ export default async function MentorsPage() {
             Find a mentor
           </h1>
           <p className="mt-2 text-neutral-400">
-            {mentors?.length ?? 0} experts ready for 1-on-1 sessions.
+            {mentors.length} experts ready for 1-on-1 sessions.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {(mentors ?? []).map((m) => (
+          {mentors.map((m) => (
             <Link key={m.slug} href={`/mentors/${m.slug}`}>
               <Card hover className="h-full">
                 <div className="flex items-start gap-3 mb-3">
@@ -60,7 +85,7 @@ export default async function MentorsPage() {
                   {m.bio}
                 </p>
                 <div className="mt-3 pt-3 border-t border-white/[0.06] flex flex-wrap gap-1.5">
-                  {(m.expertise ?? []).slice(0, 3).map((tag: string) => (
+                  {(m.expertise ?? []).slice(0, 3).map((tag) => (
                     <span
                       key={tag}
                       className="rounded-md border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-xs text-neutral-300"
@@ -79,7 +104,7 @@ export default async function MentorsPage() {
           ))}
         </div>
 
-        {!mentors?.length ? (
+        {!mentors.length ? (
           <div className="text-center py-20">
             <p className="text-neutral-400">No approved mentors yet.</p>
             <Link href="/auth/signup?role=mentor" className="mt-2 inline-block text-sm font-medium text-[#BDFF3A] hover:underline">

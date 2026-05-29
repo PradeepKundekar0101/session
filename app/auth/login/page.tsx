@@ -1,13 +1,17 @@
+"use client";
+
+import { Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/actions/auth";
 import { SiteHeader, Button, Input, Label } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string; message?: string; error?: string }>;
-}) {
-  const params = await searchParams;
+function LoginPageContent() {
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "/dashboard";
+  const error = searchParams.get("error");
+  const message = searchParams.get("message");
 
   return (
     <>
@@ -21,20 +25,20 @@ export default async function LoginPage({
             </p>
           </div>
 
-          {params.error ? (
+          {error ? (
             <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-              <p className="text-sm text-red-400">{decodeURIComponent(params.error)}</p>
+              <p className="text-sm text-red-400">{decodeURIComponent(error)}</p>
             </div>
           ) : null}
-          {params.message ? (
+          {message ? (
             <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
-              <p className="text-sm text-emerald-400">{params.message}</p>
+              <p className="text-sm text-emerald-400">{message}</p>
             </div>
           ) : null}
 
           <div className="rounded-2xl border border-white/[0.06] bg-surface p-6">
             <form action={signIn} className="space-y-4">
-              <input type="hidden" name="next" value={params.next ?? "/dashboard"} />
+              <input type="hidden" name="next" value={next} />
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" name="email" type="email" placeholder="you@example.com" required />
@@ -58,5 +62,13 @@ export default async function LoginPage({
         </div>
       </main>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

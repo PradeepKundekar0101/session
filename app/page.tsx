@@ -1,20 +1,46 @@
+"use client";
+
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { SiteHeader, Button, Card } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
+import type { Profile } from "@/lib/types";
 
-export default async function HomePage() {
-  const supabase = await createClient();
-  const { data: mentors } = await supabase
-    .from("mentor_profiles")
-    .select("id, slug, headline, rate_cents, expertise, avatar_url")
-    .eq("status", "approved")
-    .order("created_at", { ascending: false })
-    .limit(6);
+type MentorCard = {
+  id: string;
+  slug: string;
+  headline: string;
+  rate_cents: number;
+  expertise: string[] | null;
+  avatar_url: string | null;
+};
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type MeResponse = {
+  user: { id: string; email: string | undefined } | null;
+  profile: Profile | null;
+};
+
+type MentorsResponse = {
+  mentors: MentorCard[];
+};
+
+export default function HomePage() {
+  const { data: me, loading: meLoading } = useApiGet<MeResponse>("/api/me");
+  const { data: mentorsData, loading: mentorsLoading } =
+    useApiGet<MentorsResponse>("/api/mentors?limit=6");
+
+  if (meLoading || mentorsLoading) {
+    return (
+      <>
+        <SiteHeader />
+        <PageLoader />
+      </>
+    );
+  }
+
+  const user = me?.user;
+  const mentors = mentorsData?.mentors ?? [];
 
   return (
     <>
@@ -36,7 +62,6 @@ export default async function HomePage() {
       </SiteHeader>
 
       <main className="flex-1 bg-background">
-        {/* Hero */}
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#BDFF3A]/[0.03] via-transparent to-transparent" />
           <div className="mx-auto max-w-6xl px-6 pb-20 pt-20 md:pt-28">
@@ -68,7 +93,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* How it works */}
         <section className="border-y border-white/[0.06] bg-surface py-16">
           <div className="mx-auto max-w-6xl px-6">
             <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">
@@ -91,7 +115,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Featured mentors */}
         <section className="py-20">
           <div className="mx-auto max-w-6xl px-6">
             <div className="flex items-end justify-between mb-8">
@@ -109,7 +132,7 @@ export default async function HomePage() {
               </Link>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {(mentors ?? []).map((m) => (
+              {mentors.map((m) => (
                 <Link key={m.id} href={`/mentors/${m.slug}`}>
                   <Card hover className="h-full">
                     <div className="flex items-start gap-3">
@@ -144,7 +167,7 @@ export default async function HomePage() {
                   </Card>
                 </Link>
               ))}
-              {!mentors?.length ? (
+              {!mentors.length ? (
                 <p className="text-neutral-500 col-span-full text-center py-12">
                   No approved mentors yet. Be the first to apply.
                 </p>
@@ -153,7 +176,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Footer */}
         <footer className="border-t border-white/[0.06] py-8">
           <div className="mx-auto max-w-6xl px-6 flex items-center justify-between text-xs text-neutral-500">
             <p>GetMentor · Session MVP</p>

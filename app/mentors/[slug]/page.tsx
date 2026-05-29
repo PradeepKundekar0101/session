@@ -1,50 +1,69 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { useParams } from "next/navigation";
 import { createBookingRequest } from "@/lib/actions/booking";
 import { SiteHeader, Button, Card } from "@/components/ui";
-import { formatCents, generateSlots } from "@/lib/slots";
-import { getProfile } from "@/lib/auth";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
+import { formatCents } from "@/lib/slots";
+import type { Profile } from "@/lib/types";
 
-export default async function MentorProfilePage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const supabase = await createClient();
+type Slot = {
+  startIso: string;
+  endIso: string;
+  label: string;
+};
 
-  const { data: mentor } = await supabase
-    .from("mentor_profiles")
-    .select("*")
-    .eq("slug", slug)
-    .eq("status", "approved")
-    .single();
+type MentorDetail = {
+  id: string;
+  slug: string;
+  headline: string;
+  bio: string;
+  expertise: string[] | null;
+  rate_cents: number;
+  avatar_url: string | null;
+  banner_url: string | null;
+};
 
-  if (!mentor) notFound();
+type MentorResponse = {
+  mentor: MentorDetail;
+  slots: Slot[];
+  profile: Profile | null;
+};
 
-  const [{ data: rules }, { data: exceptions }, { data: bookings }] =
-    await Promise.all([
-      supabase.from("availability_rules").select("*").eq("mentor_id", mentor.id),
-      supabase
-        .from("availability_exceptions")
-        .select("*")
-        .eq("mentor_id", mentor.id),
-      supabase
-        .from("bookings")
-        .select("start_at, end_at")
-        .eq("mentor_id", mentor.id)
-        .in("status", ["requested", "approved"]),
-    ]);
+export default function MentorProfilePage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
+  const { data, loading, error } = useApiGet<MentorResponse>(
+    slug ? `/api/mentors/${slug}` : null
+  );
 
-  const slots = generateSlots({
-    rules: rules ?? [],
-    exceptions: exceptions ?? [],
-    timezone: mentor.timezone,
-    bookedRanges: bookings ?? [],
-  });
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteHeader>
+          <Link href="/mentors">All mentors</Link>
+        </SiteHeader>
+        <PageLoader />
+      </div>
+    );
+  }
 
-  const profile = await getProfile();
+  if (error || !data?.mentor) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteHeader>
+          <Link href="/mentors">All mentors</Link>
+        </SiteHeader>
+        <main className="mx-auto max-w-6xl px-6 py-16 text-center">
+          <p className="text-neutral-400">Mentor not found.</p>
+        </main>
+      </div>
+    );
+  }
+
+  const { mentor, slots, profile } = data;
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,7 +71,6 @@ export default async function MentorProfilePage({
         <Link href="/mentors">All mentors</Link>
       </SiteHeader>
 
-      {/* Banner */}
       <div className="relative h-48 w-full bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] overflow-hidden">
         {mentor.banner_url ? (
           <img
@@ -67,9 +85,7 @@ export default async function MentorProfilePage({
 
       <main className="mx-auto max-w-6xl px-6">
         <div className="grid gap-12 lg:grid-cols-5">
-          {/* Left: Profile info */}
           <div className="lg:col-span-2 -mt-12 relative z-10">
-            {/* Avatar */}
             <div className="mb-4">
               {mentor.avatar_url ? (
                 <img
@@ -92,7 +108,7 @@ export default async function MentorProfilePage({
             <p className="mt-3 text-neutral-400 leading-relaxed">{mentor.bio}</p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {(mentor.expertise ?? []).map((tag: string) => (
+              {(mentor.expertise ?? []).map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full bg-[#BDFF3A]/[0.08] border border-[#BDFF3A]/20 px-3 py-1 text-xs font-medium text-[#BDFF3A]"
@@ -108,7 +124,6 @@ export default async function MentorProfilePage({
             </p>
           </div>
 
-          {/* Right: Booking */}
           <div className="lg:col-span-3 pt-6 lg:pt-4">
             <Card>
               <h2 className="font-medium text-lg text-white">Request a session</h2>

@@ -1,9 +1,14 @@
+"use client";
+
+import { Suspense } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/auth";
+import { useSearchParams } from "next/navigation";
 import { startStripeOnboarding } from "@/lib/actions/mentor";
 import { PageTitle, Card, Badge, Button, StatCard, EmptyState } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
+import type { MentorProfile, Profile } from "@/lib/types";
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> = {
   requested: "warning",
@@ -14,34 +19,37 @@ const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> 
   cancelled: "neutral",
 };
 
-export default async function MentorDashboard({
-  searchParams,
-}: {
-  searchParams: Promise<{ onboarding?: string; stripe?: string }>;
-}) {
-  const params = await searchParams;
-  const profile = await getProfile();
-  const supabase = await createClient();
+type BookingRow = {
+  id: string;
+  start_at: string;
+  status: string;
+  amount_cents: number;
+  learner_id: string;
+};
 
-  const { data: mentor } = await supabase
-    .from("mentor_profiles")
-    .select("*")
-    .eq("user_id", profile!.id)
-    .maybeSingle();
+type MentorDashboardResponse = {
+  profile: Profile;
+  mentor: MentorProfile | null;
+  bookings: BookingRow[];
+  pending: BookingRow[];
+  totalEarned: number;
+  completed: BookingRow[];
+};
 
-  const { data: bookings } = mentor
-    ? await supabase
-        .from("bookings")
-        .select("id, start_at, status, amount_cents, learner_id")
-        .eq("mentor_id", mentor.id)
-        .order("start_at", { ascending: false })
-        .limit(20)
-    : { data: [] };
+function MentorDashboardContent() {
+  const searchParams = useSearchParams();
+  const onboarding = searchParams.get("onboarding");
+  const stripe = searchParams.get("stripe");
 
-  const pending = (bookings ?? []).filter((b) => b.status === "requested");
-  const approved = (bookings ?? []).filter((b) => b.status === "approved");
-  const completed = (bookings ?? []).filter((b) => b.status === "completed");
-  const totalEarned = completed.reduce((s, b) => s + b.amount_cents, 0);
+  const { data, loading } = useApiGet<MentorDashboardResponse>(
+    "/api/dashboard/mentor"
+  );
+
+  if (loading || !data) {
+    return <PageLoader />;
+  }
+
+  const { mentor, bookings, pending, totalEarned, completed } = data;
 
   return (
     <>
@@ -50,7 +58,7 @@ export default async function MentorDashboard({
         subtitle="Review requests, manage your schedule, and track earnings."
       />
 
-      {params.onboarding === "submitted" ? (
+      {onboarding === "submitted" ? (
         <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
           <p className="text-sm text-emerald-400 font-medium">
             Profile submitted — an admin will review it shortly.
@@ -70,7 +78,6 @@ export default async function MentorDashboard({
         />
       ) : (
         <>
-          {/* Stats */}
           <div className="grid gap-4 sm:grid-cols-4 mb-8">
             <StatCard
               label="Status"
@@ -93,7 +100,6 @@ export default async function MentorDashboard({
             <StatCard label="Earned" value={formatCents(totalEarned)} detail={`${completed.length} sessions`} />
           </div>
 
-          {/* Alerts */}
           {!mentor.stripe_account_id ? (
             <div className="mb-6 flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/10 px-5 py-4">
               <div>
@@ -108,7 +114,7 @@ export default async function MentorDashboard({
             <div className="mb-6 flex items-center gap-3">
               <form action={startStripeOnboarding}>
                 <Button type="submit" variant="ghost" size="sm">
-                  {params.stripe === "return" ? "✓ Stripe connected" : "Manage payouts"}
+                  {stripe === "return" ? "✓ Stripe connected" : "Manage payouts"}
                 </Button>
               </form>
               {mentor.status === "approved" ? (
@@ -119,7 +125,6 @@ export default async function MentorDashboard({
             </div>
           )}
 
-          {/* Pending requests */}
           <section className="mb-10">
             <h2 className="text-sm font-medium uppercase tracking-wider text-neutral-500 mb-4">
               Action required ({pending.length})
@@ -161,13 +166,12 @@ export default async function MentorDashboard({
             )}
           </section>
 
-          {/* All sessions */}
           <section>
             <h2 className="text-sm font-medium uppercase tracking-wider text-neutral-500 mb-4">
               All sessions
             </h2>
             <div className="space-y-2">
-              {(bookings ?? []).map((b) => {
+              {bookings.map((b) => {
                 const startDate = new Date(b.start_at);
                 return (
                   <Link key={b.id} href={`/bookings/${b.id}`} className="block">
@@ -187,7 +191,7 @@ export default async function MentorDashboard({
                   </Link>
                 );
               })}
-              {!(bookings ?? []).length ? (
+              {!bookings.length ? (
                 <p className="text-sm text-neutral-500 py-4">No sessions yet.</p>
               ) : null}
             </div>
@@ -195,5 +199,13 @@ export default async function MentorDashboard({
         </>
       )}
     </>
+  );
+}
+
+export default function MentorDashboard() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <MentorDashboardContent />
+    </Suspense>
   );
 }

@@ -1,45 +1,53 @@
-import { redirect } from "next/navigation";
-import { getProfile } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { setMentorStatus } from "@/lib/actions/admin";
-import { getStripeBalanceSummary } from "@/lib/stripe";
 import { PageTitle, Card, Badge, Button } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
 
-export default async function AdminDashboard() {
-  const profile = await getProfile();
-  if (!profile || profile.role !== "admin") redirect("/dashboard");
+type PendingMentor = {
+  id: string;
+  slug: string;
+  headline: string;
+  rate_cents: number;
+  status: string;
+  user_id: string;
+};
 
-  const supabase = await createClient();
+type BookingRow = {
+  id: string;
+  start_at: string;
+  status: string;
+  amount_cents: number;
+};
 
-  const [{ data: pendingMentors }, { data: bookings }] = await Promise.all([
-    supabase
-      .from("mentor_profiles")
-      .select("id, slug, headline, rate_cents, status, user_id")
-      .in("status", ["pending", "denied"])
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("bookings")
-      .select("id, start_at, status, amount_cents, stripe_payment_intent_id")
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ]);
+type AdminDashboardResponse = {
+  pendingMentors: PendingMentor[];
+  bookings: BookingRow[];
+  balanceSummary: { available: number; pending: number } | null;
+  grossCents: number;
+};
 
-  let balanceSummary: { available: number; pending: number } | null = null;
-  try {
-    const balance = await getStripeBalanceSummary();
-    balanceSummary = {
-      available: balance.available.reduce((s, b) => s + b.amount, 0),
-      pending: balance.pending.reduce((s, b) => s + b.amount, 0),
-    };
-  } catch {
-    balanceSummary = null;
+export default function AdminDashboard() {
+  const router = useRouter();
+  const { data, loading, error } = useApiGet<AdminDashboardResponse>(
+    "/api/dashboard/admin"
+  );
+
+  useEffect(() => {
+    if (!loading && error) {
+      router.replace("/dashboard");
+    }
+  }, [loading, error, router]);
+
+  if (loading || !data) {
+    return <PageLoader />;
   }
 
-  const captured = (bookings ?? []).filter((b) =>
-    ["approved", "completed"].includes(b.status)
-  );
-  const grossCents = captured.reduce((s, b) => s + b.amount_cents, 0);
+  const { pendingMentors, bookings, balanceSummary, grossCents } = data;
 
   return (
     <>
@@ -73,43 +81,43 @@ export default async function AdminDashboard() {
 
       <h2 className="font-serif text-xl text-white mb-4">Mentor applications</h2>
       <div className="space-y-4 mb-12">
-        {(pendingMentors ?? []).map((m) => (
-            <Card key={m.id} className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="font-medium text-white">{m.headline}</p>
-                <p className="text-sm text-neutral-400">
-                  /{m.slug} · {formatCents(m.rate_cents)}
-                </p>
-                <Badge tone={m.status === "pending" ? "warning" : "danger"}>
-                  {m.status}
-                </Badge>
+        {pendingMentors.map((m) => (
+          <Card key={m.id} className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="font-medium text-white">{m.headline}</p>
+              <p className="text-sm text-neutral-400">
+                /{m.slug} · {formatCents(m.rate_cents)}
+              </p>
+              <Badge tone={m.status === "pending" ? "warning" : "danger"}>
+                {m.status}
+              </Badge>
+            </div>
+            {m.status === "pending" ? (
+              <div className="flex gap-2">
+                <form action={setMentorStatus}>
+                  <input type="hidden" name="mentor_id" value={m.id} />
+                  <input type="hidden" name="status" value="approved" />
+                  <Button type="submit">Approve</Button>
+                </form>
+                <form action={setMentorStatus}>
+                  <input type="hidden" name="mentor_id" value={m.id} />
+                  <input type="hidden" name="status" value="denied" />
+                  <Button type="submit" variant="danger">
+                    Deny
+                  </Button>
+                </form>
               </div>
-              {m.status === "pending" ? (
-                <div className="flex gap-2">
-                  <form action={setMentorStatus}>
-                    <input type="hidden" name="mentor_id" value={m.id} />
-                    <input type="hidden" name="status" value="approved" />
-                    <Button type="submit">Approve</Button>
-                  </form>
-                  <form action={setMentorStatus}>
-                    <input type="hidden" name="mentor_id" value={m.id} />
-                    <input type="hidden" name="status" value="denied" />
-                    <Button type="submit" variant="danger">
-                      Deny
-                    </Button>
-                  </form>
-                </div>
-              ) : null}
-            </Card>
+            ) : null}
+          </Card>
         ))}
-        {!pendingMentors?.length ? (
+        {!pendingMentors.length ? (
           <p className="text-sm text-neutral-500">No pending applications.</p>
         ) : null}
       </div>
 
       <h2 className="font-serif text-xl text-white mb-4">Recent bookings</h2>
       <div className="space-y-2">
-        {(bookings ?? []).map((b) => (
+        {bookings.map((b) => (
           <Card key={b.id} className="flex justify-between text-sm">
             <span className="text-neutral-300">{new Date(b.start_at).toLocaleString()}</span>
             <span className="flex items-center gap-2">

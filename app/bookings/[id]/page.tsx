@@ -1,14 +1,15 @@
+"use client";
+
+import { Suspense } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/auth";
-import { getStripe } from "@/lib/stripe";
-import { meetingAvailableAt } from "@/lib/daily";
+import { useParams, useSearchParams } from "next/navigation";
 import { formatCents } from "@/lib/slots";
 import { BookingPayment } from "@/components/booking-payment";
 import { MentorBookingActions } from "@/components/mentor-actions";
 import { completeBookingForm } from "@/lib/actions/booking";
 import { BrandLogo } from "@/components/logo-icon";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
 
 const STATUS_CONFIG: Record<
   string,
@@ -22,71 +23,81 @@ const STATUS_CONFIG: Record<
   cancelled: { label: "Cancelled", color: "text-neutral-400", bg: "bg-white/[0.04] border-white/[0.08]" },
 };
 
-export default async function BookingPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ payment?: string; error?: string }>;
-}) {
-  const { id } = await params;
-  const query = await searchParams;
-  const supabase = await createClient();
-  const profile = await getProfile();
-  if (!profile) notFound();
-
-  const { data: booking } = await supabase
-    .from("bookings")
-    .select("*, mentor_profiles!inner(slug, headline, user_id)")
-    .eq("id", id)
-    .single();
-
-  if (!booking) notFound();
-
-  const mentor = booking.mentor_profiles as {
-    slug: string;
-    headline: string;
-    user_id: string;
+type BookingResponse = {
+  booking: {
+    id: string;
+    start_at: string;
+    end_at: string;
+    status: string;
+    amount_cents: number;
+    meeting_url: string | null;
+    approval_deadline: string;
+    created_at: string;
   };
-  const isLearner = booking.learner_id === profile.id;
-  const isMentor = mentor.user_id === profile.id;
-  if (!isLearner && !isMentor && profile.role !== "admin") notFound();
+  mentor: { slug: string; headline: string; user_id: string };
+  isLearner: boolean;
+  isMentor: boolean;
+  clientSecret: string | null;
+  paymentAuthorized: boolean;
+  canJoin: boolean;
+  sessionEnded: boolean;
+};
 
-  let clientSecret: string | null = null;
-  let piStatus: string | null = null;
-  if (
-    isLearner &&
-    booking.status === "requested" &&
-    booking.stripe_payment_intent_id &&
-    query.payment !== "confirmed"
-  ) {
-    try {
-      const pi = await getStripe().paymentIntents.retrieve(
-        booking.stripe_payment_intent_id
-      );
-      piStatus = pi.status;
-      const needsAction = [
-        "requires_payment_method",
-        "requires_confirmation",
-        "requires_action",
-      ].includes(pi.status);
-      if (needsAction && pi.client_secret) {
-        clientSecret = pi.client_secret;
-      }
-    } catch {
-      // PI retrieval failed
-    }
+function BookingPageContent() {
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const id = params.id;
+  const payment = searchParams.get("payment");
+  const errorParam = searchParams.get("error");
+
+  const apiUrl = id
+    ? `/api/bookings/${id}${payment ? `?payment=${payment}` : ""}`
+    : null;
+  const { data, loading, error } = useApiGet<BookingResponse>(apiUrl);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-white/[0.06] bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+          <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
+            <Link href="/">
+              <BrandLogo />
+            </Link>
+          </div>
+        </header>
+        <PageLoader />
+      </div>
+    );
   }
 
-  const paymentAuthorized =
-    piStatus === "requires_capture" || query.payment === "confirmed";
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-white/[0.06] bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+          <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
+            <Link href="/">
+              <BrandLogo />
+            </Link>
+          </div>
+        </header>
+        <main className="mx-auto max-w-2xl px-6 pt-12 pb-24 text-center">
+          <p className="text-neutral-400">{error ?? "Booking not found."}</p>
+        </main>
+      </div>
+    );
+  }
 
-  const canJoin =
-    booking.status === "approved" &&
-    booking.meeting_url &&
-    meetingAvailableAt(new Date(booking.start_at));
+  const {
+    booking,
+    mentor,
+    isLearner,
+    isMentor,
+    clientSecret,
+    paymentAuthorized,
+    canJoin,
+    sessionEnded,
+  } = data;
 
-  const sessionEnded = new Date(booking.end_at) < new Date();
   const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.cancelled;
 
   const startDate = new Date(booking.start_at);
@@ -116,13 +127,12 @@ export default async function BookingPage({
       </header>
 
       <main className="mx-auto max-w-2xl px-6 pt-12 pb-24">
-        {query.error ? (
+        {errorParam ? (
           <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-            <p className="text-sm text-red-400">{decodeURIComponent(query.error)}</p>
+            <p className="text-sm text-red-400">{decodeURIComponent(errorParam)}</p>
           </div>
         ) : null}
 
-        {/* Status strip */}
         <div className={`rounded-xl border px-5 py-4 mb-8 ${statusCfg.bg}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -137,7 +147,6 @@ export default async function BookingPage({
           </div>
         </div>
 
-        {/* Session details */}
         <div className="rounded-2xl border border-white/[0.06] bg-surface overflow-hidden">
           <div className="p-6 pb-5 border-b border-white/[0.06]">
             <p className="text-xs font-medium uppercase tracking-wider text-neutral-500 mb-2">
@@ -150,7 +159,6 @@ export default async function BookingPage({
             </div>
           </div>
 
-          {/* LEARNER: Payment authorization */}
           {booking.status === "requested" && isLearner ? (
             <div className="p-6 border-b border-white/[0.06]">
               {clientSecret ? (
@@ -200,7 +208,6 @@ export default async function BookingPage({
             </div>
           ) : null}
 
-          {/* MENTOR: Approve/Deny */}
           {booking.status === "requested" && isMentor ? (
             <div className="p-6 border-b border-white/[0.06]">
               <h2 className="font-medium text-white mb-1">Your action required</h2>
@@ -214,7 +221,6 @@ export default async function BookingPage({
             </div>
           ) : null}
 
-          {/* JOIN SESSION */}
           {canJoin ? (
             <div className="p-6 border-b border-white/[0.06]">
               <a
@@ -240,7 +246,6 @@ export default async function BookingPage({
             </div>
           ) : null}
 
-          {/* COMPLETE */}
           {booking.status === "approved" && sessionEnded && (isLearner || isMentor) ? (
             <div className="p-6 border-b border-white/[0.06]">
               <form action={completeBookingForm}>
@@ -255,7 +260,6 @@ export default async function BookingPage({
             </div>
           ) : null}
 
-          {/* Footer */}
           <div className="px-6 py-4 bg-white/[0.02]">
             <p className="text-xs text-neutral-500">
               Booking ID: {id.slice(0, 8)}… · Created {new Date(booking.created_at).toLocaleDateString()}
@@ -264,5 +268,13 @@ export default async function BookingPage({
         </div>
       </main>
     </div>
+  );
+}
+
+export default function BookingPage() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <BookingPageContent />
+    </Suspense>
   );
 }

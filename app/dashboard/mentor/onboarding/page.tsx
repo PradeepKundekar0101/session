@@ -1,20 +1,29 @@
-import { redirect } from "next/navigation";
-import { getProfile } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
 import { submitMentorOnboarding, startStripeOnboarding } from "@/lib/actions/mentor";
 import { PageTitle, Card, Input, Label, Textarea, Button } from "@/components/ui";
 import { ImageUpload } from "@/components/image-upload";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
+import type { MentorProfile } from "@/lib/types";
 
-export default async function MentorOnboardingPage() {
-  const profile = await getProfile();
-  if (!profile) redirect("/auth/login");
+type OnboardingResponse = {
+  mentor: (MentorProfile & {
+    avatar_url?: string | null;
+    banner_url?: string | null;
+  }) | null;
+};
 
-  const supabase = await createClient();
-  const { data: mentor } = await supabase
-    .from("mentor_profiles")
-    .select("*")
-    .eq("user_id", profile.id)
-    .maybeSingle();
+export default function MentorOnboardingPage() {
+  const { data, loading } = useApiGet<OnboardingResponse>(
+    "/api/dashboard/mentor/onboarding"
+  );
+
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  const mentor = data?.mentor ?? null;
 
   return (
     <>
@@ -23,7 +32,6 @@ export default async function MentorOnboardingPage() {
         subtitle="Tell learners what you offer. After admin approval, your profile goes live."
       />
 
-      {/* Image uploads (outside main form — they submit individually) */}
       <Card className="mb-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <ImageUpload

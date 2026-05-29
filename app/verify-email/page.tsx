@@ -1,34 +1,60 @@
+"use client";
+
+import { Suspense, useEffect } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { isEmailVerified } from "@/lib/auth-email";
-import { getDashboardPath } from "@/lib/auth";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   checkEmailVerified,
   resendVerificationEmail,
   signOut,
 } from "@/lib/actions/auth";
 import { SiteHeader, Button, Card, PageTitle } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
+import { dashboardPathForProfile } from "@/lib/auth-email";
+import type { Profile } from "@/lib/types";
 
-export default async function VerifyEmailPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ message?: string; error?: string; email?: string }>;
-}) {
-  const params = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type MeResponse = {
+  user: { email: string | undefined; email_confirmed_at: string | null } | null;
+  profile: Profile | null;
+};
 
-  if (user && isEmailVerified(user)) {
-    redirect(await getDashboardPath());
+function VerifyEmailPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const message = searchParams.get("message");
+  const error = searchParams.get("error");
+  const emailParam = searchParams.get("email");
+
+  const { data, loading } = useApiGet<MeResponse>("/api/me");
+
+  useEffect(() => {
+    if (loading || !data) return;
+
+    if (data.user?.email_confirmed_at && data.profile) {
+      router.replace(dashboardPathForProfile(data.profile));
+      return;
+    }
+
+    if (!data.user && !emailParam) {
+      router.replace("/auth/login?next=/verify-email");
+    }
+  }, [data, loading, emailParam, router]);
+
+  if (loading) {
+    return (
+      <>
+        <SiteHeader />
+        <PageLoader />
+      </>
+    );
   }
 
-  const displayEmail = user?.email ?? params.email ?? null;
+  const user = data?.user;
+  const displayEmail = user?.email ?? emailParam ?? null;
 
   if (!user && !displayEmail) {
-    redirect("/auth/login?next=/verify-email");
+    return null;
   }
 
   return (
@@ -47,12 +73,12 @@ export default async function VerifyEmailPage({
           title="Verify your email"
           subtitle="We sent a confirmation link to complete your account setup."
         />
-        {params.message ? (
-          <p className="mb-4 text-sm text-emerald-400">{params.message}</p>
+        {message ? (
+          <p className="mb-4 text-sm text-emerald-400">{message}</p>
         ) : null}
-        {params.error ? (
+        {error ? (
           <p className="mb-4 text-sm text-red-400">
-            {decodeURIComponent(params.error)}
+            {decodeURIComponent(error)}
           </p>
         ) : null}
         <Card className="space-y-4">
@@ -87,5 +113,13 @@ export default async function VerifyEmailPage({
         </Card>
       </main>
     </>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <VerifyEmailPageContent />
+    </Suspense>
   );
 }

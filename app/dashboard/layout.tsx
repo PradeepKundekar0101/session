@@ -1,14 +1,32 @@
+"use client";
+
 import Link from "next/link";
-import { getProfile } from "@/lib/auth";
 import { signOut } from "@/lib/actions/auth";
 import { SiteHeader, Button } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
+import type { Profile } from "@/lib/types";
 
-export default async function DashboardLayout({
+type MeResponse = {
+  profile: Profile | null;
+};
+
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await getProfile();
+  const { data, loading } = useApiGet<MeResponse>("/api/me");
+  const profile = data?.profile;
+
+  if (loading) {
+    return (
+      <>
+        <SiteHeader />
+        <PageLoader />
+      </>
+    );
+  }
 
   return (
     <>

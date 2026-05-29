@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/auth";
 import { PageTitle, Badge, EmptyState, Button } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
+import type { Profile } from "@/lib/types";
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> = {
   requested: "warning",
@@ -13,31 +16,49 @@ const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> 
   cancelled: "neutral",
 };
 
-export default async function LearnerDashboard() {
-  const profile = await getProfile();
-  const supabase = await createClient();
+type BookingRow = {
+  id: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+  amount_cents: number;
+  mentor_profiles:
+    | { headline: string; slug: string; avatar_url: string | null }
+    | { headline: string; slug: string; avatar_url: string | null }[]
+    | null;
+};
 
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select("id, start_at, end_at, status, amount_cents, mentor_profiles(headline, slug, avatar_url)")
-    .eq("learner_id", profile!.id)
-    .order("start_at", { ascending: false });
+type LearnerDashboardResponse = {
+  profile: Profile;
+  upcoming: BookingRow[];
+  past: BookingRow[];
+};
 
-  const upcoming = (bookings ?? []).filter((b) =>
-    ["requested", "approved"].includes(b.status)
+function getMentor(booking: BookingRow) {
+  const raw = booking.mentor_profiles;
+  return (Array.isArray(raw) ? raw[0] : raw) as
+    | { headline: string; slug: string; avatar_url: string | null }
+    | null;
+}
+
+export default function LearnerDashboard() {
+  const { data, loading } = useApiGet<LearnerDashboardResponse>(
+    "/api/dashboard/learner"
   );
-  const past = (bookings ?? []).filter(
-    (b) => !["requested", "approved"].includes(b.status)
-  );
+
+  if (loading || !data) {
+    return <PageLoader />;
+  }
+
+  const { profile, upcoming, past } = data;
 
   return (
     <>
       <PageTitle
-        title={`Welcome back, ${profile?.display_name?.split(" ")[0] ?? "there"}`}
+        title={`Welcome back, ${profile.display_name?.split(" ")[0] ?? "there"}`}
         subtitle="Manage your upcoming and past mentoring sessions."
       />
 
-      {/* Upcoming */}
       <section className="mb-12">
         <h2 className="text-sm font-medium uppercase tracking-wider text-neutral-500 mb-4">
           Upcoming ({upcoming.length})
@@ -45,15 +66,11 @@ export default async function LearnerDashboard() {
         {upcoming.length ? (
           <div className="space-y-3">
             {upcoming.map((b) => {
-              const raw = b.mentor_profiles;
-              const mentor = (Array.isArray(raw) ? raw[0] : raw) as
-                | { headline: string; slug: string; avatar_url: string | null }
-                | null;
+              const mentor = getMentor(b);
               const startDate = new Date(b.start_at);
               return (
                 <Link key={b.id} href={`/bookings/${b.id}`} className="block">
                   <div className="group flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-surface p-4 transition-all hover:border-white/10 hover:bg-surface-elevated">
-                    {/* Avatar */}
                     {mentor?.avatar_url ? (
                       <img src={mentor.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover shrink-0" />
                     ) : (
@@ -63,7 +80,6 @@ export default async function LearnerDashboard() {
                         </span>
                       </div>
                     )}
-                    {/* Details */}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-white truncate">
                         {mentor?.headline ?? "Session"}
@@ -74,7 +90,6 @@ export default async function LearnerDashboard() {
                         {startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                       </p>
                     </div>
-                    {/* Right side */}
                     <div className="flex items-center gap-3 shrink-0">
                       <Badge tone={STATUS_TONE[b.status]}>{b.status}</Badge>
                       <span className="text-sm font-medium text-neutral-200">
@@ -102,7 +117,6 @@ export default async function LearnerDashboard() {
         )}
       </section>
 
-      {/* Past */}
       {past.length ? (
         <section>
           <h2 className="text-sm font-medium uppercase tracking-wider text-neutral-500 mb-4">
@@ -110,10 +124,7 @@ export default async function LearnerDashboard() {
           </h2>
           <div className="space-y-2">
             {past.map((b) => {
-              const raw = b.mentor_profiles;
-              const mentor = (Array.isArray(raw) ? raw[0] : raw) as
-                | { headline: string; slug: string; avatar_url: string | null }
-                | null;
+              const mentor = getMentor(b);
               return (
                 <Link key={b.id} href={`/bookings/${b.id}`} className="block">
                   <div className="flex items-center gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 hover:bg-white/[0.04] hover:border-white/[0.08] transition-colors">

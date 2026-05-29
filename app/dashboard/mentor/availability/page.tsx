@@ -1,8 +1,12 @@
-import { redirect } from "next/navigation";
-import { getProfile } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { saveAvailability } from "@/lib/actions/mentor";
 import { PageTitle, Card, Button, Label, Input } from "@/components/ui";
+import { PageLoader } from "@/components/page-loader";
+import { useApiGet } from "@/lib/hooks/use-api";
+import type { AvailabilityRule } from "@/lib/types";
 
 const WEEKDAYS = [
   "Sunday",
@@ -14,26 +18,31 @@ const WEEKDAYS = [
   "Saturday",
 ];
 
-export default async function AvailabilityPage() {
-  const profile = await getProfile();
-  if (!profile) redirect("/auth/login");
+type AvailabilityResponse = {
+  rules: AvailabilityRule[];
+};
 
-  const supabase = await createClient();
-  const { data: mentor } = await supabase
-    .from("mentor_profiles")
-    .select("id")
-    .eq("user_id", profile.id)
-    .single();
+export default function AvailabilityPage() {
+  const router = useRouter();
+  const { data, loading, error } = useApiGet<AvailabilityResponse>(
+    "/api/dashboard/mentor/availability"
+  );
 
-  if (!mentor) redirect("/dashboard/mentor/onboarding");
+  useEffect(() => {
+    if (!loading && error) {
+      if (error === "Unauthorized") {
+        router.replace("/auth/login");
+      } else {
+        router.replace("/dashboard/mentor/onboarding");
+      }
+    }
+  }, [loading, error, router]);
 
-  const { data: rules } = await supabase
-    .from("availability_rules")
-    .select("*")
-    .eq("mentor_id", mentor.id)
-    .order("weekday");
+  if (loading || !data) {
+    return <PageLoader />;
+  }
 
-  const rulesByDay = new Map((rules ?? []).map((r) => [r.weekday, r]));
+  const rulesByDay = new Map(data.rules.map((r) => [r.weekday, r]));
 
   return (
     <>
