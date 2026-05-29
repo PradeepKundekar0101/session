@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { SiteHeader, Button, Card } from "@/components/ui";
-import { SlotRequestButton } from "@/components/slot-request-button";
+import { SlotPicker } from "@/components/slot-picker";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
@@ -143,17 +143,7 @@ export default function MentorProfilePage() {
                   No open slots in the next few weeks.
                 </p>
               ) : (
-                <div className="mt-6 space-y-2 max-h-[28rem] overflow-y-auto pr-1">
-                  {slots.map((slot) => (
-                    <SlotRequestButton
-                      key={slot.startIso}
-                      mentorId={mentor.id}
-                      startAt={slot.startIso}
-                      endAt={slot.endIso}
-                      label={slot.label}
-                    />
-                  ))}
-                </div>
+                <SlotPicker mentorId={mentor.id} slots={slots} />
               )}
             </Card>
           </div>
