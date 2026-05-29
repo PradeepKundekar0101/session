@@ -8,6 +8,7 @@ import { formatCents } from "@/lib/slots";
 import { BookingPayment } from "@/components/booking-payment";
 import { MentorBookingActions } from "@/components/mentor-actions";
 import { completeBookingForm } from "@/lib/actions/booking";
+import { BrandLogo } from "@/components/logo-icon";
 
 const STATUS_CONFIG: Record<
   string,
@@ -102,8 +103,8 @@ export default async function BookingPage({
     <div className="min-h-screen bg-background">
       <header className="border-b border-white/[0.06] bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <Link href="/" className="font-serif text-xl tracking-tight text-white">
-            GetMentor
+          <Link href="/">
+            <BrandLogo />
           </Link>
           <Link
             href={isMentor ? "/dashboard/mentor" : "/dashboard/learner"}

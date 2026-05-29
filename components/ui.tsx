@@ -1,17 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BrandLogo } from "@/components/logo-icon";
 
 export function SiteHeader({ children }: { children?: ReactNode }) {
   return (
     <header className="border-b border-white/[0.06] bg-background/80 backdrop-blur-md sticky top-0 z-50">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#BDFF3A]">
-            <span className="text-xs font-bold text-black">GM</span>
-          </div>
-          <span className="font-serif text-lg tracking-tight text-white">
-            GetMentor
-          </span>
+        <Link href="/">
+          <BrandLogo />
         </Link>
         <nav className="flex items-center gap-5 text-sm text-neutral-400">
           <Link href="/mentors" className="hover:text-white transition-colors">
