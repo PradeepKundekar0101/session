@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/logo-icon";
+import { Spinner } from "@/components/spinner";
 
 export function SiteHeader({ children }: { children?: ReactNode }) {
   return (
@@ -25,13 +26,16 @@ export function Button({
   variant = "primary",
   size = "default",
   className = "",
+  loading = false,
+  disabled,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger" | "ghost";
   size?: "default" | "sm" | "lg";
+  loading?: boolean;
 }) {
   const base =
-    "inline-flex items-center justify-center font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed";
   const sizes = {
     sm: "rounded-lg px-3 py-1.5 text-xs",
     default: "rounded-xl px-4 py-2.5 text-sm",
@@ -50,8 +54,11 @@ export function Button({
   return (
     <button
       className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
+      disabled={disabled || loading}
+      aria-busy={loading}
       {...props}
     >
+      {loading ? <Spinner className="h-4 w-4 shrink-0" /> : null}
       {children}
     </button>
   );

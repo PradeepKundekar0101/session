@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { createBookingRequest } from "@/lib/actions/booking";
 import { SiteHeader, Button, Card } from "@/components/ui";
+import { SlotRequestButton } from "@/components/slot-request-button";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
@@ -145,23 +145,13 @@ export default function MentorProfilePage() {
               ) : (
                 <div className="mt-6 space-y-2 max-h-[28rem] overflow-y-auto pr-1">
                   {slots.map((slot) => (
-                    <form
+                    <SlotRequestButton
                       key={slot.startIso}
-                      action={createBookingRequest}
-                      className="block"
-                    >
-                      <input type="hidden" name="mentor_id" value={mentor.id} />
-                      <input type="hidden" name="start_at" value={slot.startIso} />
-                      <input type="hidden" name="end_at" value={slot.endIso} />
-                      <Button
-                        type="submit"
-                        variant="secondary"
-                        className="w-full justify-between"
-                      >
-                        <span>{slot.label}</span>
-                        <span className="text-neutral-500">Request →</span>
-                      </Button>
-                    </form>
+                      mentorId={mentor.id}
+                      startAt={slot.startIso}
+                      endAt={slot.endIso}
+                      label={slot.label}
+                    />
                   ))}
                 </div>
               )}

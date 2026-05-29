@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { saveAvailability } from "@/lib/actions/mentor";
-import { PageTitle, Card, Button, Label, Input } from "@/components/ui";
+import { PageTitle, Card, Label, Input } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 import type { AvailabilityRule } from "@/lib/types";
@@ -90,7 +91,7 @@ export default function AvailabilityPage() {
           <p className="text-xs text-neutral-500">
             Only checked days are saved. Times use your mentor profile timezone.
           </p>
-          <Button type="submit">Save availability</Button>
+          <FormSubmitButton loadingText="Saving…">Save availability</FormSubmitButton>
         </form>
       </Card>
     </>

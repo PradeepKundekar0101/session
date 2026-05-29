@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { signOut } from "@/lib/actions/auth";
-import { SiteHeader, Button } from "@/components/ui";
+import { SiteHeader } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 import type { Profile } from "@/lib/types";
@@ -54,9 +55,9 @@ export default function DashboardLayout({
           </Link>
         ) : null}
         <form action={signOut}>
-          <Button type="submit" variant="ghost" size="sm">
+          <FormSubmitButton variant="ghost" size="sm" loadingText="Signing out…">
             Sign out
-          </Button>
+          </FormSubmitButton>
         </form>
       </SiteHeader>
       <main className="flex-1 bg-background mx-auto max-w-5xl px-6 py-10">{children}</main>

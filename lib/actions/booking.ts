@@ -4,99 +4,27 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
-import { approvalDeadline } from "@/lib/bookings";
 import { approveBooking, denyBooking } from "@/lib/bookings";
-import { createManualCapturePaymentIntent } from "@/lib/stripe";
-import { sendBookingRequestEmail } from "@/lib/email";
-import { config } from "@/lib/config";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createBookingRequestCore } from "@/lib/bookings/create-request";
 
 export async function createBookingRequest(formData: FormData) {
-  const supabase = await createClient();
-  const profile = await getProfile();
-  if (!profile) redirect("/auth/login");
-
   const mentorId = String(formData.get("mentor_id"));
   const startAt = String(formData.get("start_at"));
   const endAt = String(formData.get("end_at"));
 
-  const { data: mentor } = await supabase
-    .from("mentor_profiles")
-    .select("*")
-    .eq("id", mentorId)
-    .eq("status", "approved")
-    .single();
+  const result = await createBookingRequestCore({ mentorId, startAt, endAt });
 
-  if (!mentor) redirect("/mentors");
-  if (!mentor.stripe_account_id) {
-    redirect("/mentors?error=mentor-payouts");
+  if (!result.ok) {
+    if (result.code === "unauthorized") redirect("/auth/login");
+    if (result.code === "not_found") redirect("/mentors");
+    if (result.code === "conflict") {
+      redirect(`/mentors?error=${encodeURIComponent(result.error)}`);
+    }
+    redirect(`/mentors?error=booking-failed`);
   }
 
-  const { data: conflict } = await supabase
-    .from("bookings")
-    .select("id")
-    .eq("mentor_id", mentorId)
-    .in("status", ["requested", "approved"])
-    .eq("start_at", startAt)
-    .maybeSingle();
-
-  if (conflict) redirect("/mentors?error=slot-taken");
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: booking, error: bookingError } = await supabase
-    .from("bookings")
-    .insert({
-      learner_id: profile.id,
-      mentor_id: mentorId,
-      start_at: startAt,
-      end_at: endAt,
-      amount_cents: mentor.rate_cents,
-      status: "requested",
-      approval_deadline: approvalDeadline(),
-    })
-    .select("id")
-    .single();
-
-  if (bookingError || !booking) {
-    redirect("/mentors?error=booking-failed");
-  }
-
-  const pi = await createManualCapturePaymentIntent({
-    amountCents: mentor.rate_cents,
-    mentorStripeAccountId: mentor.stripe_account_id,
-    learnerEmail: user!.email!,
-    bookingId: booking.id,
-  });
-
-  await supabase
-    .from("bookings")
-    .update({ stripe_payment_intent_id: pi.id })
-    .eq("id", booking.id);
-
-  const admin = createAdminClient();
-  const { data: mentorAuth } = await admin.auth.admin.getUserById(mentor.user_id);
-  const { data: mentorProfile } = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", mentor.user_id)
-    .single();
-
-  if (mentorAuth.user?.email) {
-    await sendBookingRequestEmail({
-      mentorEmail: mentorAuth.user.email,
-      mentorName: mentorProfile?.display_name ?? "Mentor",
-      learnerName: profile.display_name ?? "A learner",
-      startAt,
-      bookingId: booking.id,
-      dashboardUrl: `${config.appUrl}/dashboard/mentor`,
-    });
-  }
-
-  revalidatePath(`/mentors/${mentor.slug}`);
-  redirect(`/bookings/${booking.id}?payment=authorize`);
+  revalidatePath(`/mentors/${result.mentorSlug}`);
+  redirect(`/bookings/${result.bookingId}?payment=authorize&booked=1`);
 }
 
 export async function mentorApproveBooking(bookingId: string) {

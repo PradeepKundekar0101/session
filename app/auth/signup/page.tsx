@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signUp } from "@/lib/actions/auth";
-import { SiteHeader, Button, Input, Label } from "@/components/ui";
+import { SiteHeader, Input, Label } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 
 function SignupPageContent() {
@@ -59,9 +60,9 @@ function SignupPageContent() {
                   <option value="mentor" className="bg-surface">Offer sessions (mentor)</option>
                 </select>
               </div>
-              <Button type="submit" className="w-full" size="lg">
+              <FormSubmitButton className="w-full" size="lg" loadingText="Creating account…">
                 Create account
-              </Button>
+              </FormSubmitButton>
             </form>
           </div>
 

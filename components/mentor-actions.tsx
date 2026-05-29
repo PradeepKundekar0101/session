@@ -3,9 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { mentorApproveBooking, mentorDenyBooking } from "@/lib/actions/booking";
+import { Spinner } from "@/components/spinner";
 
 export function MentorBookingActions({ bookingId }: { bookingId: string }) {
   const [pending, start] = useTransition();
+  const [activeAction, setActiveAction] = useState<"approve" | "deny" | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
@@ -13,6 +17,7 @@ export function MentorBookingActions({ bookingId }: { bookingId: string }) {
   function handleAction(action: "approve" | "deny") {
     setError(null);
     setSuccess(null);
+    setActiveAction(action);
     start(async () => {
       const res =
         action === "approve"
@@ -21,6 +26,7 @@ export function MentorBookingActions({ bookingId }: { bookingId: string }) {
 
       if (res.error) {
         setError(res.error);
+        setActiveAction(null);
       } else {
         setSuccess(
           action === "approve"
@@ -49,16 +55,32 @@ export function MentorBookingActions({ bookingId }: { bookingId: string }) {
         <button
           disabled={pending}
           onClick={() => handleAction("approve")}
-          className="flex-1 rounded-xl bg-gradient-to-b from-[#d4ff7a] to-[#BDFF3A] px-5 py-3 text-sm font-medium text-black shadow-[0_1px_2px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-busy={pending && activeAction === "approve"}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#d4ff7a] to-[#BDFF3A] px-5 py-3 text-sm font-medium text-black shadow-[0_1px_2px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {pending ? "Processing…" : "Approve & capture payment"}
+          {pending && activeAction === "approve" ? (
+            <>
+              <Spinner className="h-4 w-4" />
+              Processing…
+            </>
+          ) : (
+            "Approve & capture payment"
+          )}
         </button>
         <button
           disabled={pending}
           onClick={() => handleAction("deny")}
-          className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-3 text-sm font-medium text-red-400 transition-all hover:bg-red-500/15 disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-busy={pending && activeAction === "deny"}
+          className="flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-3 text-sm font-medium text-red-400 transition-all hover:bg-red-500/15 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Decline
+          {pending && activeAction === "deny" ? (
+            <>
+              <Spinner className="h-4 w-4" />
+              Declining…
+            </>
+          ) : (
+            "Decline"
+          )}
         </button>
       </div>
       {error ? (

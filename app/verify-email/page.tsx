@@ -8,7 +8,8 @@ import {
   resendVerificationEmail,
   signOut,
 } from "@/lib/actions/auth";
-import { SiteHeader, Button, Card, PageTitle } from "@/components/ui";
+import { SiteHeader, Card, PageTitle } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 import { dashboardPathForProfile } from "@/lib/auth-email";
@@ -62,9 +63,9 @@ function VerifyEmailPageContent() {
       <SiteHeader>
         {user ? (
           <form action={signOut}>
-            <Button type="submit" variant="ghost">
+            <FormSubmitButton variant="ghost" loadingText="Signing out…">
               Sign out
-            </Button>
+            </FormSubmitButton>
           </form>
         ) : null}
       </SiteHeader>
@@ -92,14 +93,14 @@ function VerifyEmailPageContent() {
           {user ? (
             <>
               <form action={resendVerificationEmail}>
-                <Button type="submit" variant="secondary" className="w-full">
+                <FormSubmitButton variant="secondary" className="w-full" loadingText="Sending…">
                   Resend verification email
-                </Button>
+                </FormSubmitButton>
               </form>
               <form action={checkEmailVerified}>
-                <Button type="submit" variant="ghost" className="w-full">
+                <FormSubmitButton variant="ghost" className="w-full" loadingText="Checking…">
                   I verified — continue
-                </Button>
+                </FormSubmitButton>
               </form>
             </>
           ) : (

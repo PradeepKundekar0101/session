@@ -8,6 +8,7 @@ import { BookingPayment } from "@/components/booking-payment";
 import { MentorBookingActions } from "@/components/mentor-actions";
 import { completeBookingForm } from "@/lib/actions/booking";
 import { BrandLogo } from "@/components/logo-icon";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 
@@ -48,6 +49,7 @@ function BookingPageContent() {
   const searchParams = useSearchParams();
   const id = params.id;
   const payment = searchParams.get("payment");
+  const booked = searchParams.get("booked");
   const errorParam = searchParams.get("error");
 
   const apiUrl = id
@@ -127,6 +129,17 @@ function BookingPageContent() {
       </header>
 
       <main className="mx-auto max-w-2xl px-6 pt-12 pb-24">
+        {booked === "1" ? (
+          <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4">
+            <p className="text-sm font-medium text-emerald-300">
+              Session booked — waiting for mentor approval
+            </p>
+            <p className="mt-1 text-sm text-emerald-400/80">
+              Authorize your card below. You&apos;ll only be charged if the mentor
+              approves within 24 hours.
+            </p>
+          </div>
+        ) : null}
         {errorParam ? (
           <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
             <p className="text-sm text-red-400">{decodeURIComponent(errorParam)}</p>
@@ -250,12 +263,13 @@ function BookingPageContent() {
             <div className="p-6 border-b border-white/[0.06]">
               <form action={completeBookingForm}>
                 <input type="hidden" name="booking_id" value={id} />
-                <button
-                  type="submit"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-medium text-neutral-200 hover:bg-white/[0.08] transition-colors"
+                <FormSubmitButton
+                  variant="secondary"
+                  className="w-full"
+                  loadingText="Completing…"
                 >
                   Mark session as completed
-                </button>
+                </FormSubmitButton>
               </form>
             </div>
           ) : null}

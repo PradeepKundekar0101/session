@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { setMentorStatus } from "@/lib/actions/admin";
-import { PageTitle, Card, Badge, Button } from "@/components/ui";
+import { PageTitle, Card, Badge } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
@@ -97,14 +98,14 @@ export default function AdminDashboard() {
                 <form action={setMentorStatus}>
                   <input type="hidden" name="mentor_id" value={m.id} />
                   <input type="hidden" name="status" value="approved" />
-                  <Button type="submit">Approve</Button>
+                  <FormSubmitButton loadingText="Approving…">Approve</FormSubmitButton>
                 </form>
                 <form action={setMentorStatus}>
                   <input type="hidden" name="mentor_id" value={m.id} />
                   <input type="hidden" name="status" value="denied" />
-                  <Button type="submit" variant="danger">
+                  <FormSubmitButton variant="danger" loadingText="Denying…">
                     Deny
-                  </Button>
+                  </FormSubmitButton>
                 </form>
               </div>
             ) : null}

@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/actions/auth";
-import { SiteHeader, Button, Input, Label } from "@/components/ui";
+import { SiteHeader, Input, Label } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 
 function LoginPageContent() {
@@ -47,9 +48,9 @@ function LoginPageContent() {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" name="password" type="password" placeholder="••••••••" required />
               </div>
-              <Button type="submit" className="w-full" size="lg">
+              <FormSubmitButton className="w-full" size="lg" loadingText="Signing in…">
                 Sign in
-              </Button>
+              </FormSubmitButton>
             </form>
           </div>
 

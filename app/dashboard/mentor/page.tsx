@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { startStripeOnboarding } from "@/lib/actions/mentor";
 import { PageTitle, Card, Badge, Button, StatCard, EmptyState } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
 import { formatCents } from "@/lib/slots";
@@ -113,9 +114,9 @@ function MentorDashboardContent() {
           ) : (
             <div className="mb-6 flex items-center gap-3">
               <form action={startStripeOnboarding}>
-                <Button type="submit" variant="ghost" size="sm">
+                <FormSubmitButton variant="ghost" size="sm" loadingText="Opening Stripe…">
                   {stripe === "return" ? "✓ Stripe connected" : "Manage payouts"}
-                </Button>
+                </FormSubmitButton>
               </form>
               {mentor.status === "approved" ? (
                 <Link href={`/mentors/${mentor.slug}`} className="text-sm text-neutral-400 hover:text-white transition-colors">

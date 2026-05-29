@@ -1,7 +1,8 @@
 "use client";
 
 import { submitMentorOnboarding, startStripeOnboarding } from "@/lib/actions/mentor";
-import { PageTitle, Card, Input, Label, Textarea, Button } from "@/components/ui";
+import { PageTitle, Card, Input, Label, Textarea } from "@/components/ui";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { ImageUpload } from "@/components/image-upload";
 import { PageLoader } from "@/components/page-loader";
 import { useApiGet } from "@/lib/hooks/use-api";
@@ -103,7 +104,7 @@ export default function MentorOnboardingPage() {
               defaultValue={mentor?.timezone ?? "America/New_York"}
             />
           </div>
-          <Button type="submit">Save & submit for review</Button>
+          <FormSubmitButton loadingText="Saving…">Save & submit for review</FormSubmitButton>
         </form>
 
         {mentor?.stripe_account_id ? (
@@ -111,9 +112,9 @@ export default function MentorOnboardingPage() {
             <p className="text-sm text-neutral-400 mb-3">
               Connect Stripe Express to receive payouts when sessions are approved.
             </p>
-            <Button type="submit" variant="secondary">
+            <FormSubmitButton variant="secondary" loadingText="Opening Stripe…">
               Connect Stripe
-            </Button>
+            </FormSubmitButton>
           </form>
         ) : null}
       </Card>

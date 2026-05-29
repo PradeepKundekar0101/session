@@ -1,5 +1,5 @@
 export const config = {
-  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://getmentors.vercel.app",
   sessionDurationMinutes: Number(process.env.SESSION_DURATION_MINUTES ?? 60),
   approvalWindowHours: Number(process.env.APPROVAL_WINDOW_HOURS ?? 24),
   slotLookaheadDays: Number(process.env.SLOT_LOOKAHEAD_DAYS ?? 28),
