@@ -1,0 +1,47 @@
+import Link from "next/link";
+import { getProfile } from "@/lib/auth";
+import { signOut } from "@/lib/actions/auth";
+import { SiteHeader, Button } from "@/components/ui";
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const profile = await getProfile();
+
+  return (
+    <>
+      <SiteHeader>
+        {profile?.role === "mentor" ? (
+          <>
+            <Link href="/dashboard/mentor" className="hover:text-white transition-colors">
+              Overview
+            </Link>
+            <Link href="/dashboard/mentor/availability" className="hover:text-white transition-colors">
+              Schedule
+            </Link>
+            <Link href="/dashboard/mentor/onboarding" className="hover:text-white transition-colors">
+              Profile
+            </Link>
+          </>
+        ) : profile?.role === "learner" ? (
+          <Link href="/mentors" className="hover:text-white transition-colors">
+            Find mentors
+          </Link>
+        ) : null}
+        {profile?.role === "admin" ? (
+          <Link href="/dashboard/admin" className="hover:text-white transition-colors">
+            Admin
+          </Link>
+        ) : null}
+        <form action={signOut}>
+          <Button type="submit" variant="ghost" size="sm">
+            Sign out
+          </Button>
+        </form>
+      </SiteHeader>
+      <main className="flex-1 bg-background mx-auto max-w-5xl px-6 py-10">{children}</main>
+    </>
+  );
+}
