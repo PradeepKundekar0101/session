@@ -40,6 +40,8 @@ function PaymentForm({ bookingId }: { bookingId: string }) {
       return;
     }
 
+    await fetch(`/api/bookings/${bookingId}/notify`, { method: "POST" });
+
     setDone(true);
     setLoading(false);
     window.location.href = `/bookings/${bookingId}?payment=confirmed`;

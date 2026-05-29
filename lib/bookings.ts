@@ -9,10 +9,9 @@ import {
 } from "@/lib/stripe";
 import { createDailyRoom, meetingAvailableAt } from "@/lib/daily";
 import {
-  sendBookingApprovedEmail,
-  sendBookingDeniedEmail,
-  sendBookingRequestEmail,
-} from "@/lib/email";
+  notifyBookingApproved,
+  notifyBookingDenied,
+} from "@/lib/bookings/notifications";
 
 export async function expireStaleBookings() {
   const admin = createAdminClient();
@@ -95,31 +94,7 @@ export async function approveBooking(bookingId: string, mentorUserId: string) {
     .select("*")
     .single();
 
-  const { data: learnerAuth } = await admin.auth.admin.getUserById(
-    booking.learner_id
-  );
-  const { data: mentorProfile } = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", mentor.user_id)
-    .single();
-  const { data: learnerProfile } = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", booking.learner_id)
-    .single();
-
-  if (learnerAuth.user?.email) {
-    await sendBookingApprovedEmail({
-      learnerEmail: learnerAuth.user.email,
-      learnerName: learnerProfile?.display_name ?? "there",
-      mentorName: mentorProfile?.display_name ?? "your mentor",
-      startAt: booking.start_at,
-      meetingUrl: room.url,
-      bookingUrl: `${config.appUrl}/bookings/${bookingId}`,
-      bookingId,
-    });
-  }
+  await notifyBookingApproved(bookingId, room.url);
 
   return updated;
 }
@@ -145,29 +120,7 @@ export async function denyBooking(bookingId: string, mentorUserId: string) {
 
   await admin.from("bookings").update({ status: "denied" }).eq("id", bookingId);
 
-  const { data: learnerAuth } = await admin.auth.admin.getUserById(
-    booking.learner_id
-  );
-  const { data: mentorProfile } = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", mentor.user_id)
-    .single();
-  const { data: learnerProfile } = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", booking.learner_id)
-    .single();
-
-  if (learnerAuth.user?.email) {
-    await sendBookingDeniedEmail({
-      learnerEmail: learnerAuth.user.email,
-      learnerName: learnerProfile?.display_name ?? "there",
-      mentorName: mentorProfile?.display_name ?? "the mentor",
-      startAt: booking.start_at,
-      bookingId,
-    });
-  }
+  await notifyBookingDenied(bookingId);
 }
 
 export function approvalDeadline() {

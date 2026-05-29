@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { formatCents } from "@/lib/slots";
@@ -56,6 +56,24 @@ function BookingPageContent() {
     ? `/api/bookings/${id}${payment ? `?payment=${payment}` : ""}`
     : null;
   const { data, loading, error } = useApiGet<BookingResponse>(apiUrl);
+  const notifiedRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      loading ||
+      !data ||
+      !id ||
+      payment !== "confirmed" ||
+      !data.isLearner ||
+      !data.paymentAuthorized ||
+      notifiedRef.current
+    ) {
+      return;
+    }
+
+    notifiedRef.current = true;
+    fetch(`/api/bookings/${id}/notify`, { method: "POST" }).catch(() => {});
+  }, [loading, data, id, payment]);
 
   if (loading) {
     return (

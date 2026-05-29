@@ -2,9 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
 import { approvalDeadline } from "@/lib/bookings";
 import { createManualCapturePaymentIntent } from "@/lib/stripe";
-import { sendBookingRequestEmail } from "@/lib/email";
-import { config } from "@/lib/config";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyBookingCreated } from "@/lib/bookings/notifications";
 
 export type CreateBookingInput = {
   mentorId: string;
@@ -102,24 +100,7 @@ export async function createBookingRequestCore(
     };
   }
 
-  const admin = createAdminClient();
-  const { data: mentorAuth } = await admin.auth.admin.getUserById(mentor.user_id);
-  const { data: mentorProfile } = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", mentor.user_id)
-    .single();
-
-  if (mentorAuth.user?.email) {
-    await sendBookingRequestEmail({
-      mentorEmail: mentorAuth.user.email,
-      mentorName: mentorProfile?.display_name ?? "Mentor",
-      learnerName: profile.display_name ?? "A learner",
-      startAt: input.startAt,
-      bookingId: booking.id,
-      dashboardUrl: `${config.appUrl}/dashboard/mentor`,
-    });
-  }
+  await notifyBookingCreated(booking.id);
 
   return { ok: true, bookingId: booking.id, mentorSlug: mentor.slug };
 }
